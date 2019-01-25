@@ -74,7 +74,9 @@
 #include "pde_thermal-fluids.hpp"
 #include "obj_thermal-fluids.hpp"
 #include "mesh_thermal-fluids.hpp"
+#ifdef HAVE_MPI
 #include "split_comm_world.hpp"
+#endif
 
 typedef double RealT;
 
@@ -154,7 +156,7 @@ int main(int argc, char *argv[]) {
 
   /*** Initialize communicator. ***/
   Teuchos::GlobalMPISession mpiSession (&argc, &argv, &bhs);
-  ROL::Ptr<Teuchos::Comm<int> > comm_linalg, comm_sample;
+  ROL::Ptr<const Teuchos::Comm<int> > comm_linalg, comm_sample;
 #ifdef HAVE_MPI
   int nLinAlg = parlist->sublist("Solver").get("Number of Cores", 4);
   split_comm_world(comm_linalg, comm_sample, nLinAlg);
