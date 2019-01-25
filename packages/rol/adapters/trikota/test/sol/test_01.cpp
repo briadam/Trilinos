@@ -43,8 +43,6 @@
 
 #include "test_01.hpp"
 
-typedef double RealT;
-
 template<class Real>
 Real random(const ROL::Ptr<const Teuchos::Comm<int> > &comm) {
   Real val = 0.0;
@@ -56,19 +54,16 @@ Real random(const ROL::Ptr<const Teuchos::Comm<int> > &comm) {
 }
 
 int main(int argc, char* argv[]) {
+  using RealT = double;
 
+  /*** Initialize communicator. ***/
   Teuchos::GlobalMPISession mpiSession(&argc, &argv);
   ROL::Ptr<const Teuchos::Comm<int> > comm
-    = Teuchos::DefaultComm<int>::getComm();
+    = ROL::toPtr(Teuchos::DefaultComm<int>::getComm());
 
   // This little trick lets us print to std::cout only if a (dummy) command-line argument is provided.
-  int iprint = argc - 1;
-  ROL::Ptr<std::ostream> outStream;
-  ROL::nullstream bhs; // outputs nothing
-  if (iprint > 0 && Teuchos::rank<int>(*comm)==0)
-    ROL::makePtrFromRef(std::cout);
-  else
-    ROL::makePtrFromRef(bhs);
+  const int myRank = comm->getRank();
+  ROL::Ptr<std::ostream> outStream = ROL::makeStreamPtr( std::cout, (argc > 1) && (myRank==0) );
 
   int errorFlag  = 0;
 
@@ -89,22 +84,20 @@ int main(int argc, char* argv[]) {
     /**********************************************************************************************/
     // Build control vectors
     int nx = 256;
-    ROL::Ptr<std::vector<RealT> > x_ptr  = ROL::makePtr<std::vector<RealT>>(nx+2,0.0);
-    ROL::StdVector<RealT> x(x_ptr);
-    ROL::Ptr<std::vector<RealT> > d_ptr  = ROL::makePtr<std::vector<RealT>>(nx+2,0.0);
-    ROL::StdVector<RealT> d(d_ptr);
+    ROL::Ptr<std::vector<RealT>> x_ptr, d_ptr, u_ptr, p_ptr;
+    x_ptr = ROL::makePtr<std::vector<RealT>>(nx+2,0.0);
+    d_ptr = ROL::makePtr<std::vector<RealT>>(nx+2,0.0);
+    u_ptr = ROL::makePtr<std::vector<RealT>>(nx,1.0);
+    p_ptr = ROL::makePtr<std::vector<RealT>>(nx,0.0);
+    ROL::Ptr<ROL::StdVector<RealT>> xp, dp, up, pp;
+    xp = ROL::makePtr<ROL::StdVector<RealT>>(x_ptr);
+    dp = ROL::makePtr<ROL::StdVector<RealT>>(d_ptr);
+    up = ROL::makePtr<ROL::StdVector<RealT>>(u_ptr);
+    pp = ROL::makePtr<ROL::StdVector<RealT>>(p_ptr);
     for ( int i = 0; i < nx+2; i++ ) {
       (*x_ptr)[i] = random<RealT>(comm);
       (*d_ptr)[i] = random<RealT>(comm);
     }
-    ROL::Ptr<ROL::Vector<RealT> > xp = &x,false;
-    // Build state and adjoint vectors
-    ROL::Ptr<std::vector<RealT> > u_ptr  = ROL::makePtr<std::vector<RealT>>(nx,1.0);
-    ROL::StdVector<RealT> u(u_ptr);
-    ROL::Ptr<std::vector<RealT> > p_ptr  = ROL::makePtr<std::vector<RealT>>(nx,0.0);
-    ROL::StdVector<RealT> p(p_ptr);
-    ROL::Ptr<ROL::Vector<RealT> > up = &u,false;
-    ROL::Ptr<ROL::Vector<RealT> > pp = &p,false;
     /**********************************************************************************************/
     /************************* CONSTRUCT SOL COMPONENTS *******************************************/
     /**********************************************************************************************/
@@ -165,8 +158,8 @@ int main(int argc, char* argv[]) {
     // Test parametrized objective functions
     *outStream << "Check Derivatives of Parametrized Objective Function\n";
     pObj->setParameter(sampler->getMyPoint(0));
-    pObj->checkGradient(x,d,true,*outStream);
-    pObj->checkHessVec(x,d,true,*outStream);
+    pObj->checkGradient(*xp,*dp,true,*outStream);
+    pObj->checkHessVec(*xp,*dp,true,*outStream);
     /**********************************************************************************************/
     /************************* RISK NEUTRAL *******************************************************/
     /**********************************************************************************************/

@@ -51,8 +51,6 @@
 #include "ROL_SparseGridGenerator.hpp"
 #include "ROL_StdTeuchosBatchManager.hpp"
 
-typedef double RealT;
-
 template<class Real>
 class Integrand {
 public:
@@ -75,19 +73,16 @@ public:
 };
 
 int main(int argc, char* argv[]) {
+  using RealT = double;
 
+  /*** Initialize communicator. ***/
   Teuchos::GlobalMPISession mpiSession(&argc, &argv);
   ROL::Ptr<const Teuchos::Comm<int> > comm
-    = Teuchos::DefaultComm<int>::getComm();
+    = ROL::toPtr(Teuchos::DefaultComm<int>::getComm());
 
   // This little trick lets us print to std::cout only if a (dummy) command-line argument is provided.
-  int iprint = argc - 1;
-  ROL::Ptr<std::ostream> outStream;
-  ROL::nullstream bhs; // outputs nothing
-  if (iprint > 0 && Teuchos::rank<int>(*comm)==0)
-    ROL::makePtrFromRef(std::cout);
-  else
-    ROL::makePtrFromRef(bhs);
+  const int myRank = comm->getRank();
+  ROL::Ptr<std::ostream> outStream = ROL::makeStreamPtr( std::cout, (argc > 1) && (myRank==0) );
 
   int errorFlag  = 0;
 
